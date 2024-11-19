@@ -24,8 +24,8 @@ Mini 8Knot is a Streamlit application designed to provide analytics for open sou
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/mini-8knot.git
-   cd mini-8knot
+   git clone https://github.com/engcaiofonseca/Mini_8Knot.git
+   cd Mini_8Knot
    ```
 
 2. **Install Dependencies**:
