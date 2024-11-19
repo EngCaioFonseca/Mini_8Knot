@@ -398,7 +398,11 @@ def create_mini_8knot():
     #token = ''  # Replace with your actual token
     commit_df, contributors, contributions, code_changes = fetch_github_data(repo_name, date_range, token)
     prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks, contributors_data = fetch_additional_insights(repo_name, token)
-    
+
+        # Calculate daily commits
+    commit_df['date'] = pd.to_datetime(commit_df['date'])
+    daily_commits = commit_df.groupby(commit_df['date'].dt.date).size()
+
     # Main layout
     st.title("Mini 8Knot - Open Source Analytics")
     
