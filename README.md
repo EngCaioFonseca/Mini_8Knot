@@ -7,6 +7,7 @@ Mini 8Knot is a Streamlit application designed to provide analytics for open sou
 
 ![image](https://github.com/user-attachments/assets/565b6a77-2478-46c4-9ef5-b8a3b775bc77)
 
+![image](https://github.com/user-attachments/assets/bb0aaef7-0971-4bf2-8068-49991520cd03)
 
 ## Features
 
