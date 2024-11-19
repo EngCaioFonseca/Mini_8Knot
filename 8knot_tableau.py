@@ -9,6 +9,10 @@ import pygwalker as pyg
 import requests
 from community import community_louvain
 
+   # Access the GitHub token from secrets
+token = st.secrets["GITHUB_TOKEN"]
+
+
 def fetch_github_data(repo_name, date_range, token):
     headers = {'Authorization': f'token {token}'}
     base_url = f'https://api.github.com/repos/{repo_name}'
@@ -283,7 +287,7 @@ def create_mini_8knot():
         value=(datetime.now() - timedelta(days=365), datetime.now())
     )
     
-    token = 'your_personal_token'  # Replace with your actual token
+    #token = 'your_personal_token'  # Replace with your actual token
     commit_df, contributors, contributions, code_changes = fetch_github_data(repo_name, date_range, token)
     prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks = fetch_additional_insights(repo_name, token)
     
