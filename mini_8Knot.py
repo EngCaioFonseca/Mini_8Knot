@@ -84,7 +84,7 @@ def fetch_github_actions_status(repo_name, token):
     actions_data = actions_response.json()
     
     runs = actions_data.get('workflow_runs', [])
-    latest_runs = runs[:10]  # Get the latest 10 runs
+    latest_runs = runs[:20]  # Get the latest 20 runs
     
     run_details = []
     for run in latest_runs:
@@ -522,7 +522,7 @@ def create_mini_8knot():
         run_details = fetch_github_actions_status(repo_name, token)
         if run_details:
             df_runs = pd.DataFrame(run_details)
-            st.write("Latest 10 Workflow Runs", df_runs)
+            st.write("Latest 20 Workflow Runs", df_runs)
         else:
             st.warning("No workflow runs available.")
     
