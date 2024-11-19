@@ -424,7 +424,7 @@ def create_mini_8knot():
         # Contributor metrics
         st.metric("Total Contributors", len(contributors))
         
-    with tab4:
+    with tab2:
         st.subheader("Custom Analysis with Interactive Plotly")
         comprehensive_df = create_comprehensive_dataset(commit_df, contributors, prs_data, issues_data)
         
@@ -440,7 +440,7 @@ def create_mini_8knot():
             st.warning("No data available for custom analysis.")
     
     
-    with tab5:
+    with tab3:
         st.subheader("Commit Activity Heatmap & Networks")
         
         # Heatmap for commit activity
@@ -468,7 +468,7 @@ def create_mini_8knot():
         else:
             st.warning("No data available for example network.")
     
-    with tab6:
+    with tab4:
         st.subheader("Metrics & PRs to Review")
         
         # Display additional insights
@@ -499,7 +499,7 @@ def create_mini_8knot():
             selected_issue = st.selectbox("Stales issues to address", issue_titles)
             st.write(f"Selected Issue: {selected_issue}")
 
-    with tab8:
+    with tab5:
         st.subheader("Live Dashboard")
         stars, forks, open_issues = fetch_github_repo_stats(repo_name, token)
         st.metric("Stars", stars)
@@ -513,7 +513,7 @@ def create_mini_8knot():
             results = process_query(query, prs_data, issues_data, contributors_data)
             st.write("Results:", results)
 
-    with tab9:
+    with tab6:
         st.subheader("CI/CD Integration")
         run_details = fetch_github_actions_status(repo_name, token)
         if run_details:
