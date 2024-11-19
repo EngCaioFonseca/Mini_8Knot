@@ -1,0 +1,8 @@
+Streamlit
+Plotly
+Pandas
+NumPy
+NetworkX
+Pygwalker
+Requests
+python-louvain
