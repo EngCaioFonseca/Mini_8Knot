@@ -8,8 +8,9 @@ from datetime import datetime, timedelta
 import pygwalker as pyg
 import requests
 from community import community_louvain
+from transformers.pipelines import pipeline
 
-   # Access the GitHub token from secrets
+# Access the GitHub token from secrets
 token = st.secrets["GITHUB_TOKEN"]
 
 
@@ -61,6 +62,45 @@ def fetch_github_data(repo_name, date_range, token):
 
     return commit_df, contributors, contributions, code_changes
 
+def fetch_github_repo_stats(repo_name, token):
+    headers = {'Authorization': f'token {token}'}
+    base_url = f'https://api.github.com/repos/{repo_name}'
+    
+    # Fetch repository statistics
+    repo_response = requests.get(base_url, headers=headers)
+    repo_data = repo_response.json()
+    
+    stars = repo_data.get('stargazers_count', 0)
+    forks = repo_data.get('forks_count', 0)
+    open_issues = repo_data.get('open_issues_count', 0)
+    
+    return stars, forks, open_issues
+
+def fetch_github_actions_status(repo_name, token):
+    headers = {'Authorization': f'token {token}'}
+    actions_url = f'https://api.github.com/repos/{repo_name}/actions/runs'
+    
+    # Fetch latest workflow runs
+    actions_response = requests.get(actions_url, headers=headers)
+    actions_data = actions_response.json()
+    
+    runs = actions_data.get('workflow_runs', [])
+    latest_runs = runs[:10]  # Get the latest 10 runs
+    
+    run_details = []
+    for run in latest_runs:
+        run_info = {
+            'Name': run.get('name', 'N/A'),
+            'Status': run.get('conclusion', 'unknown'),
+            'Duration (min)': run.get('run_duration_ms', 0) / 60000,  # Convert ms to minutes
+            'Created At': run.get('created_at', 'N/A')
+        }
+        run_details.append(run_info)
+    
+    return run_details
+
+
+
 def fetch_additional_insights(repo_name, token):
     headers = {'Authorization': f'token {token}'}
     base_url = f'https://api.github.com/repos/{repo_name}'
@@ -71,7 +111,6 @@ def fetch_additional_insights(repo_name, token):
     prs_data = prs_response.json()
     num_merged_prs = sum(1 for pr in prs_data if pr['merged_at'] is not None)
     avg_time_to_merge = np.mean([(datetime.strptime(pr['merged_at'], '%Y-%m-%dT%H:%M:%SZ') - datetime.strptime(pr['created_at'], '%Y-%m-%dT%H:%M:%SZ')).days for pr in prs_data if pr['merged_at']])
-
 
     # Fetch issues
     issues_url = f'{base_url}/issues'
@@ -86,7 +125,60 @@ def fetch_additional_insights(repo_name, token):
     stars = repo_data['stargazers_count']
     forks = repo_data['forks_count']
 
-    return prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks
+        # Fetch contributors
+    contributors_url = f'{base_url}/contributors'
+    contributors_response = requests.get(contributors_url, headers=headers)
+    contributors_data = contributors_response.json()
+
+    return prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks, contributors_data
+
+
+def process_query(query, prs_data, issues_data, contributors_data):
+    # Simple NLP model to interpret queries
+    nlp = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+    labels = ["pull requests to review", "stale issues", "contributors"]
+
+    result = nlp(query, labels)
+    label = result['labels'][0]
+
+    if label == "pull requests to review":
+        unreviewed_prs = [pr for pr in prs_data if pr.get('comments', 0) == 0]
+        return unreviewed_prs
+    elif label == "stale issues":
+        stale_issues = [issue for issue in issues_data if issue['state'] == 'open' and (datetime.now() - datetime.strptime(issue['created_at'], '%Y-%m-%dT%H:%M:%SZ')).days > 30]
+        return stale_issues
+    elif label == "contributors":
+        return contributors_data
+    else:
+        return []
+
+
+def create_comprehensive_dataset(commit_df, contributors, prs_data, issues_data):
+    # Create a DataFrame for contributors
+    contributors_df = pd.DataFrame({
+        'Contributor': contributors,
+        'Total Commits': [commit_df[commit_df['author'] == contributor].shape[0] for contributor in contributors]
+    })
+
+    # Create a DataFrame for pull requests
+    prs_df = pd.DataFrame(prs_data)
+    prs_df['Days Open'] = (pd.to_datetime(prs_df['closed_at']) - pd.to_datetime(prs_df['created_at'])).dt.days
+    prs_df['Type'] = 'PR'
+
+    # Create a DataFrame for issues
+    issues_df = pd.DataFrame(issues_data)
+    issues_df['Days Open'] = (pd.to_datetime(issues_df['closed_at']) - pd.to_datetime(issues_df['created_at'])).dt.days
+    issues_df['Type'] = 'Issue'
+
+    # Combine all data into a comprehensive DataFrame
+    comprehensive_df = pd.concat([
+        contributors_df,
+        prs_df[['Type', 'state', 'created_at', 'closed_at', 'Days Open']],
+        issues_df[['Type', 'state', 'created_at', 'closed_at', 'Days Open']]
+    ], axis=0, ignore_index=True)
+
+    return comprehensive_df
+
 
 def provide_recommendations(prs_data, issues_data):
     # Identify PRs not reviewed
@@ -99,7 +191,7 @@ def provide_recommendations(prs_data, issues_data):
     if stale_issues:
         recommendations.append(f"There are {len(stale_issues)} stale issues that need attention.")
     
-    return recommendations
+    return recommendations, unreviewed_prs, stale_issues
 
 def create_real_interaction_network(contributors, commit_df):
     # Create a graph based on co-authored commits
@@ -138,11 +230,13 @@ def create_real_interaction_network(contributors, commit_df):
     node_x = []
     node_y = []
     node_size = []
+    node_color = []  # Initialize node_color as a list
     for node in G.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
         node_size.append(G.degree[node] * 10)  # Scale size by degree
+        node_color.append(G.degree[node])  # Append color based on degree
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -153,11 +247,11 @@ def create_real_interaction_network(contributors, commit_df):
         marker=dict(
             showscale=True,
             colorscale='YlGnBu',
-            color=node_size,
+            color=node_color,  # Use the node_color list
             size=node_size,
             colorbar=dict(
                 thickness=15,
-                title='Contributions',
+                title='Node Connections',
                 xanchor='left',
                 titleside='right'
             ),
@@ -165,7 +259,7 @@ def create_real_interaction_network(contributors, commit_df):
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title='Real Contributor Interaction Network',
+                        title='Real Interaction Network',
                         titlefont_size=16,
                         showlegend=False,
                         hovermode='closest',
@@ -193,14 +287,15 @@ def create_example_network(contributors, contributions):
         for contribution in contributions
     ]
     
-    # Add nodes with size based on contributions
+    # Add nodes with sizes
     for contributor, size in zip(contributors, node_sizes):
         G.add_node(contributor, size=size)
     
     # Add random edges
-    for _ in range(len(contributors) * 2):  # Arbitrary number of edges
-        a, b = np.random.choice(contributors, 2, replace=False)
-        G.add_edge(a, b)
+    for i in range(len(contributors)):
+        for j in range(i + 1, len(contributors)):
+            if np.random.rand() > 0.7:  # Randomly decide to add an edge
+                G.add_edge(contributors[i], contributors[j])
     
     # Plot the network graph using Plotly
     pos = nx.spring_layout(G)
@@ -220,14 +315,14 @@ def create_example_network(contributors, contributions):
 
     node_x = []
     node_y = []
-    node_color = []
     node_size = []
+    node_color = []
     for node in G.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
-        node_color.append(G.nodes[node]['size'])
         node_size.append(G.nodes[node]['size'])
+        node_color.append(G.degree[node])
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -273,6 +368,20 @@ def display_chaoss_metrics(commit_df, num_open_issues, num_closed_issues):
         issue_closure_rate = 0
     st.metric("Issue Closure Rate", f"{issue_closure_rate:.2%}")
 
+def detect_communities(G):
+    # Use the Louvain method to detect communities
+    partition = community_louvain.best_partition(G)
+    return partition
+
+def detect_communities(G):
+    # Ensure G is a NetworkX graph
+    if isinstance(G, nx.Graph):
+        # Use the Louvain method to detect communities
+        partition = community_louvain.best_partition(G)
+        return partition
+    else:
+        raise ValueError("Input is not a NetworkX graph")
+
 
 def create_mini_8knot():
     st.set_page_config(page_title="Mini 8Knot", layout="wide")
@@ -287,15 +396,15 @@ def create_mini_8knot():
         value=(datetime.now() - timedelta(days=365), datetime.now())
     )
     
-    #token = 'your_personal_token'  # Replace with your actual token
+    #token = 'personal_token'  # Replace with your actual token
     commit_df, contributors, contributions, code_changes = fetch_github_data(repo_name, date_range, token)
-    prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks = fetch_additional_insights(repo_name, token)
+    prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks, contributors_data = fetch_additional_insights(repo_name, token)
     
     # Main layout
     st.title("Mini 8Knot - Open Source Analytics")
     
     # Create tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Contribution Activity", "Contributors", "Code Changes", "Custom Analysis", "Insights"])
+    tab1, tab2, tab4, tab5, tab6, tab8, tab9 = st.tabs(["Contribution Activity", "Contributors", "Custom Analysis", "Commit Activity & Networks", "Metrics & PRs", "Live Dashboard", "CI/CD Integration"])
     
     with tab1:
         st.subheader("Contribution Activity Over Time")
@@ -343,26 +452,24 @@ def create_mini_8knot():
         # Contributor metrics
         st.metric("Total Contributors", len(contributors))
         
-    with tab3:
-        st.subheader("Code Changes Analysis")
-        categories = ['Additions', 'Deletions', 'Files Changed']
-        
-        # Create code changes plot
-        fig_changes = go.Figure(data=[
-            go.Bar(name='Changes', x=categories, y=code_changes)
-        ])
-        fig_changes.update_layout(title="Code Changes Overview")
-        st.plotly_chart(fig_changes, use_container_width=True)
-    
     with tab4:
-        st.subheader("Custom Analysis with Pygwalker")
-        if not commit_df.empty:
-            pyg.walk(commit_df)  # This will open a Pygwalker interface for the dataframe
+        st.subheader("Custom Analysis with Interactive Plotly")
+        comprehensive_df = create_comprehensive_dataset(commit_df, contributors, prs_data, issues_data)
+        
+        # Display the DataFrame
+        st.write("Contribution DataFrame & PRs/Issues", comprehensive_df)
+        
+        # Create an interactive bar chart
+        if not comprehensive_df.empty:
+            fig = px.bar(comprehensive_df, x='Type', y='Days Open', color='state', barmode='group',
+                         title="Days Open by Type and State")
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No data available for custom analysis.")
     
+    
     with tab5:
-        st.subheader("Additional Insights")
+        st.subheader("Commit Activity Heatmap & Networks")
         
         # Heatmap for commit activity
         if not daily_commits.empty:
@@ -388,6 +495,9 @@ def create_mini_8knot():
             st.plotly_chart(fig_example_network, use_container_width=True)
         else:
             st.warning("No data available for example network.")
+    
+    with tab6:
+        st.subheader("Metrics & PRs to Review")
         
         # Display additional insights
         st.metric("Merged PRs", num_merged_prs)
@@ -397,10 +507,50 @@ def create_mini_8knot():
         st.metric("Stars", stars)
         st.metric("Forks", forks)
         
+        # Display CHAOSS metrics
+        display_chaoss_metrics(commit_df, num_open_issues, num_closed_issues)
+        
         # Provide prescriptive recommendations
-        recommendations = provide_recommendations(prs_data, issues_data)
+        recommendations, unreviewed_prs, stale_issues = provide_recommendations(prs_data, issues_data)
         for rec in recommendations:
             st.write(rec)
+        
+        # Dropdown for unreviewed PRs
+        if unreviewed_prs:
+            pr_titles = [pr['title'] for pr in unreviewed_prs]
+            selected_pr = st.selectbox("PRs to review", pr_titles)
+            st.write(f"Selected PR: {selected_pr}")
+        
+        # Dropdown for stale issues
+        if stale_issues:
+            issue_titles = [issue['title'] for issue in stale_issues]
+            selected_issue = st.selectbox("Stales issues to address", issue_titles)
+            st.write(f"Selected Issue: {selected_issue}")
+
+    with tab8:
+        st.subheader("Live Dashboard")
+        stars, forks, open_issues = fetch_github_repo_stats(repo_name, token)
+        st.metric("Stars", stars)
+        st.metric("Forks", forks)
+        st.metric("Open Issues", open_issues)
+
+        # NLP Query
+        query = st.text_input("Ask a question about PRs, issues, or contributors:")
+        if query:
+            prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks, contributors_data = fetch_additional_insights(repo_name, token)
+            results = process_query(query, prs_data, issues_data, contributors_data)
+            st.write("Results:", results)
+
+    with tab9:
+        st.subheader("CI/CD Integration")
+        run_details = fetch_github_actions_status(repo_name, token)
+        if run_details:
+            df_runs = pd.DataFrame(run_details)
+            st.write("Latest 10 Workflow Runs", df_runs)
+        else:
+            st.warning("No workflow runs available.")
+    
+    
     
     # Footer with information about the project
     st.markdown("""
