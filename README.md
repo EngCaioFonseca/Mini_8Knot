@@ -3,6 +3,11 @@ Created using: 8Knot as reference, and developed using Cursor AI IDE with Claude
 
 Mini 8Knot is a Streamlit application designed to provide analytics for open source projects hosted on GitHub. It offers insights into contribution activity, contributor interactions, code changes, and more, using data fetched from the GitHub API.
 
+![image](https://github.com/user-attachments/assets/67fb95bf-78a2-4663-b27a-21500b48f3c4)
+
+![image](https://github.com/user-attachments/assets/565b6a77-2478-46c4-9ef5-b8a3b775bc77)
+
+
 ## Features
 
 - **Contribution Activity**: Visualize daily commit activity over a specified date range.
