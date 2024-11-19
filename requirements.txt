@@ -6,3 +6,4 @@ NetworkX
 Pygwalker
 Requests
 python-louvain
+transformers
