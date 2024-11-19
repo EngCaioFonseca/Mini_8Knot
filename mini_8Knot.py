@@ -13,7 +13,6 @@ from transformers.pipelines import pipeline
 # Access the GitHub token from secrets
 token = st.secrets["GITHUB_TOKEN"]
 
-
 def fetch_github_data(repo_name, date_range, token):
     headers = {'Authorization': f'token {token}'}
     base_url = f'https://api.github.com/repos/{repo_name}'
@@ -259,7 +258,7 @@ def create_real_interaction_network(contributors, commit_df):
 
     fig = go.Figure(data=[edge_trace, node_trace],
                     layout=go.Layout(
-                        title='Real Interaction Network',
+                        title='Contributors Network',
                         titlefont_size=16,
                         showlegend=False,
                         hovermode='closest',
@@ -351,7 +350,7 @@ def create_example_network(contributors, contributions):
                         hovermode='closest',
                         margin=dict(b=20,l=5,r=5,t=40),
                         annotations=[ dict(
-                            text="Example of how it would look like if contributors interacted",
+                            text="Example of how it would look like if contributors interacted - Co-authored commits",
                             showarrow=False,
                             xref="paper", yref="paper",
                             x=0.005, y=-0.002 ) ],
@@ -396,7 +395,7 @@ def create_mini_8knot():
         value=(datetime.now() - timedelta(days=365), datetime.now())
     )
     
-    #token = 'personal_token'  # Replace with your actual token
+    #token = ''  # Replace with your actual token
     commit_df, contributors, contributions, code_changes = fetch_github_data(repo_name, date_range, token)
     prs_data, issues_data, num_merged_prs, avg_time_to_merge, num_open_issues, num_closed_issues, stars, forks, contributors_data = fetch_additional_insights(repo_name, token)
     
@@ -404,37 +403,10 @@ def create_mini_8knot():
     st.title("Mini 8Knot - Open Source Analytics")
     
     # Create tabs for different visualizations
-    tab1, tab2, tab4, tab5, tab6, tab8, tab9 = st.tabs(["Contribution Activity", "Contributors", "Custom Analysis", "Commit Activity & Networks", "Metrics & PRs", "Live Dashboard", "CI/CD Integration"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Contributors", "Custom Analysis", "Commit Activity & Networks", "Metrics & PRs", "Live Dashboard", "CI/CD Integration"])
     
+
     with tab1:
-        st.subheader("Contribution Activity Over Time")
-        dates = pd.date_range(start=date_range[0], end=date_range[1] - timedelta(days=1), freq='D')
-        
-        # Aggregate commit data by date
-        daily_commits = commit_df.groupby('date').size().reindex(dates, fill_value=0)
-        
-        # Create contribution activity plot
-        if not daily_commits.empty:
-            fig_activity = px.line(
-                x=daily_commits.index, 
-                y=daily_commits.values,
-                title="Daily Commits",
-                labels={'x': 'Date', 'y': 'Number of Commits'}
-            )
-            st.plotly_chart(fig_activity, use_container_width=True)
-        else:
-            st.warning("No data available for the selected date range.")
-        
-        # Activity metrics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Commits", f"{daily_commits.sum()}")
-        with col2:
-            st.metric("Active Days", f"{(daily_commits > 0).sum()}")
-        with col3:
-            st.metric("Daily Average", f"{daily_commits.mean():.1f}")
-    
-    with tab2:
         st.subheader("Contributor Analysis")
         
         # Create contributor plot
