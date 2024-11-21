@@ -572,57 +572,65 @@ def create_mini_8knot():
     with tab7:
         st.subheader("Issue Analysis & Prediction")
         
-        # Prepare and train model
-        issues_df = prepare_issue_data(issues_data)
-        
-        # Display issue statistics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Issues", len(issues_df))
-        with col2:
-            st.metric("Stale Issues", sum(issues_df['is_stale']))
-        with col3:
-            stale_rate = (sum(issues_df['is_stale']) / len(issues_df)) * 100
-            st.metric("Stale Rate", f"{stale_rate:.1f}%")
-        
-        # Train model and save
-        if not issues_df.empty:
-            model, vectorizer = train_issue_model(issues_df)
+        try:
+            # Prepare and train model
+            issues_df = prepare_issue_data(issues_data)
             
-            # Issue prediction form
-            st.subheader("Predict Issue Status")
-            new_title = st.text_input("Issue Title")
-            new_body = st.text_area("Issue Description")
-            new_comments = st.number_input("Number of Comments", min_value=0)
-            new_has_labels = st.checkbox("Has Labels")
+            # Display issue statistics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Issues", len(issues_df))
+            with col2:
+                st.metric("Stale Issues", sum(issues_df['is_stale']))
+            with col3:
+                stale_rate = (sum(issues_df['is_stale']) / len(issues_df)) * 100 if len(issues_df) > 0 else 0
+                st.metric("Stale Rate", f"{stale_rate:.1f}%")
             
-            if st.button("Predict"):
-                if new_title:
-                    probability = predict_issue_status(
-                        model, vectorizer, new_title, new_body, 
-                        new_comments, new_has_labels
-                    )
-                    st.write(f"Probability of becoming stale: {probability:.1%}")
+            # Train model and save
+            if not issues_df.empty:
+                try:
+                    model, vectorizer = train_issue_model(issues_df)
                     
-                    if probability < 0.3:
-                        st.success("Low risk of becoming stale")
-                    elif probability < 0.7:
-                        st.warning("Medium risk of becoming stale")
-                    else:
-                        st.error("High risk of becoming stale")
+                    # Issue prediction form
+                    st.subheader("Predict Issue Status")
+                    new_title = st.text_input("Issue Title")
+                    new_body = st.text_area("Issue Description")
+                    new_comments = st.number_input("Number of Comments", min_value=0)
+                    new_has_labels = st.checkbox("Has Labels")
+                    
+                    if st.button("Predict"):
+                        if new_title:
+                            try:
+                                probability = predict_issue_status(
+                                    model, vectorizer, new_title, new_body, 
+                                    new_comments, new_has_labels
+                                )
+                                st.write(f"Probability of becoming stale: {probability:.1%}")
+                                
+                                if probability < 0.3:
+                                    st.success("Low risk of becoming stale")
+                                elif probability < 0.7:
+                                    st.warning("Medium risk of becoming stale")
+                                else:
+                                    st.error("High risk of becoming stale")
+                            except Exception as e:
+                                st.error(f"Error making prediction: {str(e)}")
+                        else:
+                            st.error("Please enter at least a title")
+                except Exception as e:
+                    st.error(f"Error training model: {str(e)}")
+                
+                # Display current stale issues
+                st.subheader("Current Stale Issues")
+                stale_issues_df = issues_df[issues_df['is_stale']]
+                if not stale_issues_df.empty:
+                    st.dataframe(stale_issues_df[['title', 'created_at', 'comments']])
                 else:
-                    st.error("Please enter at least a title")
-            
-            # Display current stale issues
-            st.subheader("Current Stale Issues")
-            stale_issues_df = issues_df[issues_df['is_stale']]
-            if not stale_issues_df.empty:
-                st.dataframe(stale_issues_df[['title', 'created_at', 'comments']])
+                    st.info("No stale issues found")
             else:
-                st.info("No stale issues found")
-        else:
-            st.warning("No issue data available for analysis")
-    
+                st.warning("No issue data available for analysis")
+        except Exception as e:
+            st.error(f"Error preparing issue data: {str(e)}")
     
     
     # Footer with information about the project
