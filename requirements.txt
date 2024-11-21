@@ -7,3 +7,6 @@ Pygwalker
 Requests
 python-louvain
 transformers
+scikit-learn
+sciPy
+joblib
