@@ -423,6 +423,18 @@ def train_issue_model(issues_df):
     
     return model, vectorizer
 
+def predict_issue_status(model, vectorizer, title, body, comments, has_labels):
+    """Predict if an issue is likely to become stale"""
+    text = f"{title} {body}"
+    X_text = vectorizer.transform([text])
+    X_meta = sparse.csr_matrix([[float(comments), float(has_labels)]])
+    
+    X = sparse.hstack([X_text, X_meta])
+    
+    probability = model.predict_proba(X)[0][1]
+    return probability
+
+
 
 def create_mini_8knot():
     st.set_page_config(page_title="Mini 8Knot", layout="wide")
