@@ -11,6 +11,9 @@ Mini 8Knot is a Streamlit application designed to provide analytics for open sou
 
 ![image](https://github.com/user-attachments/assets/b28a82bb-cad9-4e78-8e6e-5c2f5d056abc)
 
+![image](https://github.com/user-attachments/assets/c7f5d172-febb-46d6-ae5a-749f4a168de9)
+
+
 ## Features
 
 - **Contributors Analysis**: Visualize top contributors and their contributions.
@@ -19,6 +22,8 @@ Mini 8Knot is a Streamlit application designed to provide analytics for open sou
 - **Metrics & PRs**: Insights into pull requests, issues, and repository metrics.
 - **Live Dashboard**: Real-time repository statistics and NLP-based query handling.
 - **CI/CD Integration**: Display latest GitHub Actions workflow runs.
+- **Issue Analysis & ML Predictions**: Machine learning-powered issue status prediction and analysis.
+
 
 ## Installation
 
@@ -63,7 +68,10 @@ streamlit run mini_8Knot.py
 - **create_comprehensive_dataset**: Combines data into a comprehensive DataFrame for analysis.
 - **provide_recommendations**: Offers recommendations based on PR and issue data.
 - **create_real_interaction_network**: Visualizes contributor interactions as a network graph.
+- **train_issue_model**: Trains ML model for issue status prediction.
+- **predict_issue_status**: Predicts likelihood of issues becoming stale.
 
+  
 ### Tabs
 
 - **Contributors**: Displays a bar chart of top contributors.
@@ -72,6 +80,31 @@ streamlit run mini_8Knot.py
 - **Metrics & PRs**: Displays repository metrics and recommendations for PRs and issues.
 - **Live Dashboard**: Offers real-time stats and NLP query handling.
 - **CI/CD Integration**: Lists the latest 10 GitHub Actions workflow runs.
+- **Issue Analysis**: ML-powered issue prediction and stale issue analysis.
+
+## Issue Analysis & Prediction
+
+The Issue Analysis tab provides machine learning capabilities to analyze and predict issue status in GitHub repositories. This feature helps maintainers identify issues that might need attention before they become stale.
+
+### ML Features Include:
+
+#### Issue Statistics Dashboard
+- Total issue count
+- Current stale issues count
+- Overall stale rate percentage
+
+#### Predictive Analytics
+The ML model analyzes:
+- Issue title and description (using TF-IDF)
+- Comment count
+- Label presence
+- Issue age
+
+#### Risk Assessment
+Issues are classified into three risk categories:
+- Low Risk (< 30% probability of becoming stale)
+- Medium Risk (30-70% probability)
+- High Risk (> 70% probability)
 
 ## Requirements
 
@@ -83,7 +116,11 @@ streamlit run mini_8Knot.py
 - NetworkX
 - Requests
 - Transformers
+- Scikit-learn
+- SciPy
+- Joblib
 
+  
 ## License
 
 This project is licensed under the Apache 2.0 License.
