@@ -1475,55 +1475,121 @@ def display_infrastructure_details():
 def monitor_container_health():
     """Monitor Docker container health and logs"""
     try:
-        client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
-        
-        # Get Augur containers
-        containers = client.containers.list(
-            all=True,
-            filters={'ancestor': ['augurlabs/augur-docker', 'augurlabs/augur']}
-        )
+        # First try to connect to Docker
+        try:
+            client = docker.from_env()
+            # Test the connection
+            client.ping()
+        except docker.errors.DockerException as e:
+            st.error(f"⚠️ Cannot connect to Docker daemon. Please ensure Docker is running and you have proper permissions.")
+            st.info("""
+            To fix this:
+            1. Check if Docker is running:
+               ```bash
+               sudo systemctl status docker
+               ```
+            2. Start Docker if it's not running:
+               ```bash
+               sudo systemctl start docker
+               ```
+            3. Add your user to the docker group:
+               ```bash
+               sudo usermod -aG docker $USER
+               ```
+            4. Then log out and log back in, or run:
+               ```bash
+               newgrp docker
+               ```
+            """)
+            return
+
+        # If connection successful, show demo data if no containers found
+        containers = client.containers.list(all=True)
         
         if not containers:
-            st.warning("No Augur containers found")
+            st.warning("No containers found. Showing demo container data.")
+            if st.button("Show Demo Container Data"):
+                # Demo container data
+                demo_containers = [
+                    {
+                        'name': 'augur-frontend',
+                        'status': 'running',
+                        'health': 'healthy',
+                        'logs': 'Frontend service running on port 5000\nConnected to backend service\n',
+                    },
+                    {
+                        'name': 'augur-backend',
+                        'status': 'running',
+                        'health': 'healthy',
+                        'logs': 'Backend API started\nDatabase connection established\n',
+                    },
+                    {
+                        'name': 'augur-db',
+                        'status': 'running',
+                        'health': 'healthy',
+                        'logs': 'PostgreSQL database running\nAccepting connections\n',
+                    }
+                ]
+                
+                for container in demo_containers:
+                    col1, col2 = st.columns([3, 1])
+                    
+                    with col1:
+                        st.subheader(f"Container: {container['name']}")
+                        st.metric("Status", container['status'])
+                        st.metric("Health", container['health'])
+                        
+                        with st.expander("View Logs"):
+                            st.code(container['logs'])
+                    
+                    with col2:
+                        if st.button(f"Restart {container['name']}", key=container['name']):
+                            st.info(f"Demo: Would restart {container['name']} in production")
+                        
+                        if container['health'] == 'healthy':
+                            st.success("✅ Healthy")
+                        else:
+                            st.error("❌ Unhealthy")
             return
-        
+
+        # If real containers found, show their data
         for container in containers:
             col1, col2 = st.columns([3, 1])
             
             with col1:
                 st.subheader(f"Container: {container.name}")
                 
-                # Show container status and health
                 status = container.status
                 health = container.attrs.get('State', {}).get('Health', {}).get('Status', 'N/A')
                 
                 st.metric("Status", status)
                 st.metric("Health", health)
                 
-                # Show recent logs
-                logs = container.logs(tail=100, timestamps=True).decode('utf-8')
                 with st.expander("View Logs"):
-                    st.code(logs)
+                    try:
+                        logs = container.logs(tail=100, timestamps=True).decode('utf-8')
+                        st.code(logs)
+                    except Exception as e:
+                        st.error(f"Error fetching logs: {str(e)}")
             
             with col2:
-                # Add restart button
-                if st.button(f"Restart {container.name}"):
+                if st.button(f"Restart {container.name}", key=container.name):
                     try:
                         container.restart()
                         st.success(f"Container {container.name} restarted successfully")
                     except Exception as e:
                         st.error(f"Failed to restart container: {str(e)}")
                 
-                # Add health check status
                 if health == 'healthy':
                     st.success("✅ Healthy")
                 elif health == 'unhealthy':
                     st.error("❌ Unhealthy")
                 else:
                     st.warning("⚠️ Status Unknown")
-        
+                    
     except Exception as e:
         st.error(f"Error monitoring containers: {str(e)}")
+        #st.info("Showing demo data instead...")
 
 def display_infrastructure_details():
     """Display infrastructure details including K8s and container health"""
