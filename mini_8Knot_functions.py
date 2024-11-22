@@ -1482,6 +1482,7 @@ def is_running_on_streamlit_cloud():
 
 def monitor_container_health():
     """Monitor Docker container health and logs"""
+    st.subheader("Container Health Monitor")
     
     if is_running_on_streamlit_cloud():
         st.info("📢 Running on Streamlit Cloud - showing demo data")
@@ -1492,15 +1493,45 @@ def monitor_container_health():
     try:
         client = docker.from_env()
         client.ping()
-        docker_available = True
+        containers = client.containers.list(all=True)
+        
+        if not containers:
+            st.warning("No containers found")
+            if st.button("Show Demo Data"):
+                show_demo_container_data()
+            return
+            
+        # Show real container data
+        for container in containers:
+            st.markdown(f"### 📦 {container.name}")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Status", container.status)
+            with col2:
+                st.metric("Health", container.attrs.get('State', {}).get('Health', {}).get('Status', 'N/A'))
+            with col3:
+                if st.button(f"Restart {container.name}", key=container.name):
+                    try:
+                        container.restart()
+                        st.success(f"Container {container.name} restarted successfully")
+                    except Exception as e:
+                        st.error(f"Failed to restart container: {str(e)}")
+            
+            # Logs
+            st.markdown("**Logs:**")
+            try:
+                logs = container.logs(tail=100, timestamps=True).decode('utf-8')
+                st.code(logs)
+            except Exception as e:
+                st.error(f"Error fetching logs: {str(e)}")
+            
+            st.markdown("---")
+            
     except Exception as e:
-        docker_available = False
-        st.error("Docker is not accessible locally")
+        st.error("Docker is not accessible")
         if st.button("Show Demo Data"):
             show_demo_container_data()
-        return
-
-    # Rest of your existing Docker monitoring code...
 
 def show_demo_container_data():
     """Show demo container data"""
@@ -1537,10 +1568,9 @@ def show_demo_container_data():
         }
     ]
     
-    # Enhanced demo visualization
+    # Overall system metrics
     st.success("✅ Showing simulated container status")
     
-    # Overall system metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Containers", len(demo_containers))
@@ -1552,38 +1582,46 @@ def show_demo_container_data():
         st.metric("Total CPU", "2.5%")
 
     # Container details
+    st.subheader("Container Details")
     for container in demo_containers:
-        with st.expander(f"📦 {container['name']} ({container['status']})"):
-            col1, col2, col3 = st.columns([2, 1, 1])
-            
-            with col1:
-                st.markdown(f"**Version:** {container['version']}")
-                st.markdown(f"**Uptime:** {container['uptime']}")
-                with st.expander("View Logs"):
-                    st.code(container['logs'])
-            
-            with col2:
-                st.metric("Memory Usage", container['memory'])
-                st.metric("CPU Usage", container['cpu'])
-            
-            with col3:
-                st.metric("Health", container['health'])
-                if container['health'] == 'healthy':
-                    st.success("✅ Healthy")
-                else:
-                    st.error("❌ Unhealthy")
-                
-                if st.button(f"Restart {container['name']}", key=container['name']):
-                    st.info(f"Demo: Simulated restart of {container['name']}")
+        st.markdown(f"### 📦 {container['name']} ({container['status']})")
+        
+        # Container metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Memory Usage", container['memory'])
+        with col2:
+            st.metric("CPU Usage", container['cpu'])
+        with col3:
+            st.metric("Health", container['health'])
+            if container['health'] == 'healthy':
+                st.success("✅ Healthy")
+            else:
+                st.error("❌ Unhealthy")
+        
+        # Container info
+        st.markdown(f"**Version:** {container['version']} | **Uptime:** {container['uptime']}")
+        
+        # Logs
+        st.markdown("**Logs:**")
+        st.code(container['logs'])
+        
+        # Actions
+        if st.button(f"Restart {container['name']}", key=container['name']):
+            st.info(f"Demo: Simulated restart of {container['name']}")
+        
+        st.markdown("---")  # Separator between containers
 
     # Add a note about demo mode
     st.markdown("""
-    ---
-    ℹ️ **Note:** This is a demo visualization. In a real deployment:
-    - Container metrics would be real-time
-    - Actions like restart would affect actual containers
-    - Logs would show actual container output
+    ℹ️ **Note:** This is a demo visualization showing simulated container data.
+    In a real deployment, you would see:
+    - Real-time container metrics
+    - Actual container logs
+    - Live container status
+    - Working container controls
     """)
+
 
 def display_infrastructure_details():
     """Display infrastructure details including K8s and container health"""
