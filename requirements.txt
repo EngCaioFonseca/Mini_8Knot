@@ -10,3 +10,13 @@ transformers
 scikit-learn
 sciPy
 joblib
+pygithub
+kubernetes
+docker
+torch
+psycopg2-binary
+SQLAlchemy
+python-dateutil
+python-dotenv
+black
+pylint
