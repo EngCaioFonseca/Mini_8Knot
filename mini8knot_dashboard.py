@@ -72,29 +72,64 @@ def add_dashboard_tab():
     try:
         st.header("Analytics Dashboard")
         
-        # Create sample data if no data is loaded
-        if 'df' not in st.session_state:
-            # Create sample data for demonstration
+        # Create sample data for demonstration
+        def create_sample_data():
+            """Create sample data for the dashboard"""
+            np.random.seed(42)  # For reproducibility
             date_rng = pd.date_range(start='2024-01-01', end='2024-02-01', freq='H')
-            df = pd.DataFrame(date_rng, columns=['timestamp'])
-            df['value'] = np.random.normal(100, 10, len(df))
-            df['category'] = np.random.choice(['A', 'B', 'C', 'D'], len(df))
-            df['status'] = np.random.choice(['active', 'inactive'], len(df), p=[0.8, 0.2])
-        else:
-            df = st.session_state.df
+            size = len(date_rng)
+            
+            df = pd.DataFrame({
+                'timestamp': date_rng,
+                'value': np.random.normal(100, 10, size),
+                'commits': np.random.poisson(5, size),
+                'contributors': np.random.poisson(3, size),
+                'issues': np.random.poisson(8, size),
+                'pull_requests': np.random.poisson(4, size),
+                'response_time': np.random.exponential(2, size),
+                'category': np.random.choice(['A', 'B', 'C', 'D'], size),
+                'status': np.random.choice(['active', 'inactive'], size, p=[0.8, 0.2])
+            })
+            
+            # Add some trends and patterns
+            df['value'] += np.linspace(0, 20, size)  # Adding upward trend
+            df['activity_score'] = df['commits'] + df['pull_requests'] + df['issues']
+            
+            return df
 
+        # Create or get the data
+        if 'dashboard_df' not in st.session_state:
+            st.session_state.dashboard_df = create_sample_data()
+        
+        df = st.session_state.dashboard_df
+
+        # Add data source disclaimer
+        st.info("""
+        🔍 **Data Source Information**
+        
+        This dashboard currently shows conceptual data for demonstration purposes. In a production environment, 
+        it would be connected to Augur's database to show real open source project metrics and analytics.
+        """)
         # Create sections using columns
         metrics_col, trends_col = st.columns([1, 2])
         
         with metrics_col:
             st.subheader("Key Performance Metrics")
             
-            # Add metric cards
+            # Add metric cards with explanations
             st.metric(
                 label="Total Samples",
                 value=f"{len(df):,}",
                 delta="Active Samples"
             )
+            with st.expander("ℹ️ About this metric"):
+                st.markdown("""
+                **Total Samples** represents the number of data points collected from the project.
+                In Augur, this would show:
+                - Total number of commits
+                - Number of active contributors
+                - Repository activity metrics
+                """)
             
             # Process capability metrics
             cpk_value = calculate_process_capability(df)
@@ -104,42 +139,89 @@ def add_dashboard_tab():
                 delta=f"{'Above' if cpk_value > 1.33 else 'Below'} Target",
                 delta_color="normal" if cpk_value > 1.33 else "inverse"
             )
-            
-            # Add statistical metrics
-            metrics = calculate_advanced_metrics(df)
-            if metrics:
-                st.metric(
-                    label="Trend Coefficient",
-                    value=f"{metrics['trend_coefficient']:.2e}",
-                    delta="Positive Trend" if metrics['trend_coefficient'] > 0 else "Negative Trend"
-                )
+            with st.expander("ℹ️ About Process Capability"):
+                st.markdown("""
+                **Process Capability (Cpk)** measures how well the process meets specifications:
+                - Cpk > 1.33: Process is capable
+                - Cpk < 1.33: Process needs improvement
+                
+                In Augur context, this would measure:
+                - Code quality metrics
+                - Review process efficiency
+                - Release cycle stability
+                """)
 
         with trends_col:
             st.subheader("Trend Analysis")
             fig = plot_trend_prediction(df)
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("📊 Understanding Trend Analysis"):
+                st.markdown("""
+                **Trend Analysis** shows the pattern of activity over time:
+                - Blue line: Historical data
+                - Red dashed line: Predicted trend
+                
+                In Augur, this would visualize:
+                - Commit frequency
+                - Issue resolution rates
+                - Community growth patterns
+                - Development velocity
+                """)
 
         # Statistical Insights section
         st.subheader("Statistical Insights")
         stats_col1, stats_col2, stats_col3 = st.columns(3)
         
         with stats_col1:
-            # Distribution Analysis
             st.markdown("#### Distribution Analysis")
             fig = plot_distribution_analysis(df)
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("📈 About Distribution Analysis"):
+                st.markdown("""
+                **Distribution Analysis** shows the spread of values:
+                - Histogram: Frequency of values
+                - Red line: Kernel Density Estimation
+                
+                In Augur context, this would show:
+                - Code contribution patterns
+                - Issue response times
+                - Pull request sizes
+                - Review durations
+                """)
             
         with stats_col2:
-            # Correlation Matrix
             st.markdown("#### Feature Correlations")
             fig = plot_correlation_matrix(df)
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("🔗 Understanding Correlations"):
+                st.markdown("""
+                **Correlation Matrix** shows relationships between metrics:
+                - Red: Positive correlation
+                - Blue: Negative correlation
+                - Color intensity: Correlation strength
+                
+                In Augur, this would reveal:
+                - Relationships between different metrics
+                - Impact of community size on productivity
+                - Dependencies between different activities
+                """)
             
         with stats_col3:
-            # System Load
             st.markdown("#### System Load")
             fig = plot_system_load()
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("🖥️ About System Load"):
+                st.markdown("""
+                **System Load** monitors performance metrics:
+                - Green line: Current load
+                - Red dashed line: Critical threshold
+                
+                In production, this would track:
+                - Database query performance
+                - API response times
+                - Resource utilization
+                - System health metrics
+                """)
 
         # Database Performance section
         st.subheader("Database Performance")
@@ -149,15 +231,45 @@ def add_dashboard_tab():
             st.markdown("#### Query Performance")
             fig = plot_query_performance()
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("⚡ About Query Performance"):
+                st.markdown("""
+                **Query Performance** compares different database approaches:
+                - Main DB: Direct database queries
+                - Replica DB: Read-replica queries
+                - Optimized: Query with indexing and caching
+                
+                This demonstrates:
+                - Performance optimization strategies
+                - Query response times
+                - System scalability
+                """)
             
         with db_col2:
             st.markdown("#### Performance Metrics")
-            # Add some example metrics
             col1, col2 = st.columns(2)
             with col1:
                 st.metric("Avg Response Time", "45ms", "-23%")
             with col2:
                 st.metric("Query Success Rate", "99.9%", "0.5%")
+            with st.expander("📊 About Performance Metrics"):
+                st.markdown("""
+                **Performance Metrics** track system health:
+                - Response Time: Average query duration
+                - Success Rate: Percentage of successful queries
+                
+                In Augur, this would monitor:
+                - API performance
+                - Data collection efficiency
+                - System reliability
+                """)
+
+        # Add footer with data refresh information
+        st.markdown("---")
+        st.caption("""
+        📝 **Note**: This is a demonstration dashboard using simulated data. 
+        In production, it would be connected to Augur's database and show real-time metrics 
+        from open source projects. Last updated: {}
+        """.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     except Exception as e:
         logger.error(f"Error in dashboard: {str(e)}")
