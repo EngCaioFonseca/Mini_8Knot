@@ -20,3 +20,5 @@ python-dateutil
 python-dotenv
 black
 pylint
+graphviz
+time
