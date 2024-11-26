@@ -21,7 +21,7 @@ python-dotenv
 black
 pylint
 graphviz
-time
+pandas-ta
 statsmodels
 seaborn
 matplotlib
