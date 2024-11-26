@@ -32,19 +32,19 @@ class DatabaseSimulator:
         
     def write_to_main(self, new_data):
         """Simulate write to main database"""
-        time.sleep(0.1)  # Add time. prefix
-        self.main_db = pd.concat([self.main_db, new_data], ignore_index=True)
+        with st.spinner('Writing to main database...'):
+            self.main_db = pd.concat([self.main_db, new_data], ignore_index=True)
     
     def sync_replica(self):
         """Sync replica with main database"""
-        time.sleep(0.5)  # Add time. prefix
-        self.replica_db = self.main_db.copy()
-        self.last_sync = datetime.now()
+        with st.spinner('Syncing replica database...'):
+            self.replica_db = self.main_db.copy()
+            self.last_sync = datetime.now()
     
     def read_from_main(self, query_params):
         """Simulate read from main database"""
-        time.sleep(0.2)  # Add time. prefix
-        return self.filter_data(self.main_db, query_params)
+        with st.spinner('Reading from main database...'):
+            return self.filter_data(self.main_db, query_params)
     
     def read_from_replica(self, query_params):
         """Read from replica database"""
@@ -104,25 +104,24 @@ def run_performance_test(db_simulator, optimized_processor, query_params, num_qu
     }
     
     # Test main database
-    start = time.time()  # Add time. prefix
+    start = datetime.now()
     for _ in range(num_queries):
         db_simulator.read_from_main(query_params)
-    results['main_db'] = time.time() - start  # Add time. prefix
+    results['main_db'] = (datetime.now() - start).total_seconds()
     
     # Test replica database
-    start = time.time()  # Add time. prefix
+    start = datetime.now()
     for _ in range(num_queries):
         db_simulator.read_from_replica(query_params)
-    results['replica_db'] = time.time() - start  # Add time. prefix
+    results['replica_db'] = (datetime.now() - start).total_seconds()
     
     # Test optimized query
-    start = time.time()  # Add time. prefix
+    start = datetime.now()
     for _ in range(num_queries):
         optimized_processor.query_data(query_params)
-    results['optimized'] = time.time() - start  # Add time. prefix
+    results['optimized'] = (datetime.now() - start).total_seconds()
     
     return results
-
 
 def draw_architecture_diagrams():
     # Add to the explanation section in add_database_simulation_tab()
