@@ -17,6 +17,8 @@ from scipy import sparse
 import os
 import docker
 from kubernetes import client, config
+from mini8Knot_db_sim import add_database_simulation_tab
+
 
 # Access the GitHub token from secrets
 token = st.secrets["GITHUB_TOKEN"]
@@ -1666,12 +1668,13 @@ def create_mini_8knot():
     st.title("Mini 8Knot - Open Source Analytics")
     
     # Create tabs for different visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_db_sim = st.tabs([
         "Contributors", "Commit Activity & Networks", "Metrics & PRs",
         "Transformer-Based Chatbot For PRs, Issues & Contributors", 
         "CI/CD Integration", "Issue Prediction (Machine Learning model)", 
-        "Container Infrastructure", "Infrastructure Management"
+        "Container Infrastructure", "Infrastructure Management", "Database Simulation"
         ])
+    
     
 
     with tab1:
@@ -1833,6 +1836,9 @@ def create_mini_8knot():
 
     with tab8:
         display_infrastructure_details()   
+        
+    with tab_db_sim:
+        add_database_simulation_tab()
     
     
     # Footer with information about the project
